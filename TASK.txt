@@ -1,0 +1,417 @@
+npm create vite@latest
+npm run dev
+npm install tailwindcss @tailwindcss/vite
+
+📁TIMER src/
+
+// File: src/App.tsx
+import React, { useEffect, useRef, useState } from 'react';
+
+const App: React.FC = () => {
+  const [time, setTime] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    timerRef.current = setInterval(() => {
+      setTime((prevTime) => prevTime + 10); // increase every 10ms
+    }, 10);
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  const formatTime = (time: number) => {
+    const hours = Math.floor(time / 3600000);
+    const minutes = Math.floor((time % 3600000) / 60000);
+    const seconds = Math.floor((time % 60000) / 1000);
+    const milliseconds = time % 1000;
+
+    const pad = (num: number, size = 2) => String(num).padStart(size, '0');
+
+    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}.${pad(milliseconds, 3)}`;
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center h-screen text-3xl font-mono">
+      <div className="mb-4 text-blue-600 font-bold">Live Timer</div>
+      <div className="bg-black text-green-400 p-4 rounded-lg shadow-lg">
+        {formatTime(time)}
+      </div>
+    </div>
+  );
+};
+
+export default App;
+
+
+📁FETCH API src/
+
+// File: src/App.tsx
+import React, { useEffect, useState } from 'react';
+import SearchBar from './components/SearchBar';
+import Table from './components/Table';
+import { User } from './types/Data';
+
+const App: React.FC = () => {
+  const [users, setUsers] = useState<User[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    fetch('https://jsonplaceholder.typicode.com/users')
+      .then((res) => res.json())
+      .then((data) => setUsers(data))
+      .catch((err) => console.error(err));
+  }, []);
+
+  const filteredUsers = users.filter((user) =>
+    user.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">User Table</h1>
+      <SearchBar value={searchQuery} onChange={setSearchQuery} />
+      <Table users={filteredUsers} />
+    </div>
+  );
+};
+
+export default App;
+
+
+// File: src/components/SearchBar.tsx
+import React from 'react';
+
+interface Props {
+  value: string;
+  onChange: (value: string) => void;
+}
+
+const SearchBar: React.FC<Props> = ({ value, onChange }) => {
+  return (
+    <input
+      type="text"
+      placeholder="Search by name..."
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="border p-2 mb-4 w-full"
+    />
+  );
+};
+
+export default SearchBar;
+
+
+// File: src/components/Table.tsx
+import React from 'react';
+import { User } from '../types/Data';
+
+interface Props {
+  users: User[];
+}
+
+const Table: React.FC<Props> = ({ users }) => {
+  return (
+    <table className="w-full border-collapse border">
+      <thead>
+        <tr className="bg-gray-200">
+          <th className="border px-4 py-2">Name</th>
+          <th className="border px-4 py-2">Email</th>
+          <th className="border px-4 py-2">Phone</th>
+        </tr>
+      </thead>
+      <tbody>
+        {users.map((user) => (
+          <tr key={user.id} className="hover:bg-gray-100">
+            <td className="border px-4 py-2">{user.name}</td>
+            <td className="border px-4 py-2">{user.email}</td>
+            <td className="border px-4 py-2">{user.phone}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+};
+
+export default Table;
+
+
+// File: src/types/Data.ts
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+}
+
+📁 CART src/
+
+// File: src/App.tsx
+import React, { useState } from 'react';
+import ProductList from './components/ProductList';
+import Cart from './components/Cart';
+import { Product } from './types/Product';
+
+const dummyProducts: Product[] = [
+  { id: 1, name: 'Laptop', price: 999 },
+  { id: 2, name: 'Headphones', price: 199 },
+  { id: 3, name: 'Smartphone', price: 599 },
+];
+
+const App: React.FC = () => {
+  const [cart, setCart] = useState<Product[]>([]);
+  const [showCart, setShowCart] = useState(false);
+
+  const addToCart = (product: Product) => {
+    setCart([...cart, product]);
+  };
+
+  const removeFromCart = (id: number) => {
+    setCart(cart.filter((item) => item.id !== id));
+  };
+
+  return (
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">My Shop</h1>
+        <button
+          className="bg-blue-600 text-white px-4 py-2 rounded"
+          onClick={() => setShowCart(!showCart)}
+        >
+          {showCart ? 'Back to Products' : `Cart (${cart.length})`}
+        </button>
+      </div>
+
+      {showCart ? (
+        <Cart cart={cart} removeFromCart={removeFromCart} />
+      ) : (
+        <ProductList products={dummyProducts} addToCart={addToCart} />
+      )}
+    </div>
+  );
+};
+
+export default App;
+
+
+// File: src/components/ProductList.tsx
+import React from 'react';
+import { Product } from '../types/Product';
+
+interface Props {
+  products: Product[];
+  addToCart: (product: Product) => void;
+}
+
+const ProductList: React.FC<Props> = ({ products, addToCart }) => {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {products.map((product) => (
+        <div
+          key={product.id}
+          className="border p-4 rounded shadow hover:shadow-lg"
+        >
+          <h2 className="text-lg font-bold">{product.name}</h2>
+          <p className="text-gray-700">${product.price}</p>
+          <button
+            onClick={() => addToCart(product)}
+            className="mt-2 bg-green-500 text-white px-3 py-1 rounded"
+          >
+            Add to Cart
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export default ProductList;
+
+
+// File: src/components/Cart.tsx
+import React from 'react';
+import { Product } from '../types/Product';
+
+interface Props {
+  cart: Product[];
+  removeFromCart: (id: number) => void;
+}
+
+const Cart: React.FC<Props> = ({ cart, removeFromCart }) => {
+  return (
+    <div>
+      <h2 className="text-xl font-bold mb-4">Your Cart</h2>
+      {cart.length === 0 ? (
+        <p>No items in cart.</p>
+      ) : (
+        <ul>
+          {cart.map((item) => (
+            <li
+              key={item.id}
+              className="flex justify-between items-center border-b py-2"
+            >
+              <span>
+                {item.name} - ${item.price}
+              </span>
+              <button
+                className="bg-red-500 text-white px-2 py-1 rounded"
+                onClick={() => removeFromCart(item.id)}
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
+export default Cart;
+
+
+// File: src/types/Product.ts
+export interface Product {
+  id: number;
+  name: string;
+  price: number;
+}
+
+📁CAKE CART src/
+
+// File: src/App.tsx
+import React, { useEffect, useState } from 'react';
+import CakeCard from './components/CakeCard';
+import Cart from './components/Cart';
+import { Cake } from './types/Cake';
+
+const API_URL = 'https://api.sampleapis.com/cakes/cakes'; // ✅ Example cake API
+
+const App: React.FC = () => {
+  const [cakes, setCakes] = useState<Cake[]>([]);
+  const [cart, setCart] = useState<Cake[]>([]);
+  const [showCart, setShowCart] = useState(false);
+
+  useEffect(() => {
+    fetch(API_URL)
+      .then((res) => res.json())
+      .then((data) => setCakes(data))
+      .catch((err) => console.error(err));
+  }, []);
+
+  const addToCart = (cake: Cake) => {
+    setCart([...cart, cake]);
+  };
+
+  const removeFromCart = (id: number) => {
+    setCart(cart.filter((item) => item.id !== id));
+  };
+
+  return (
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">🍰 Cake Shop</h1>
+        <button
+          onClick={() => setShowCart(!showCart)}
+          className="bg-purple-600 text-white px-4 py-2 rounded"
+        >
+          {showCart ? 'Back to Cakes' : `Cart (${cart.length})`}
+        </button>
+      </div>
+
+      {showCart ? (
+        <Cart cart={cart} removeFromCart={removeFromCart} />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {cakes.slice(0, 12).map((cake) => (
+            <CakeCard key={cake.id} cake={cake} addToCart={addToCart} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default App;
+
+
+// File: src/components/CakeCard.tsx
+import React from 'react';
+import { Cake } from '../types/Cake';
+
+interface Props {
+  cake: Cake;
+  addToCart: (cake: Cake) => void;
+}
+
+const CakeCard: React.FC<Props> = ({ cake, addToCart }) => {
+  return (
+    <div className="border rounded shadow-md p-4">
+      <img
+        src={cake.image}
+        alt={cake.title}
+        className="h-48 w-full object-cover rounded mb-2"
+      />
+      <h2 className="text-lg font-bold">{cake.title}</h2>
+      <p className="text-gray-700">${cake.price || 20}</p>
+      <button
+        onClick={() => addToCart(cake)}
+        className="mt-2 bg-green-500 text-white px-3 py-1 rounded"
+      >
+        Add to Cart
+      </button>
+    </div>
+  );
+};
+
+export default CakeCard;
+
+
+// File: src/components/Cart.tsx
+import React from 'react';
+import { Cake } from '../types/Cake';
+
+interface Props {
+  cart: Cake[];
+  removeFromCart: (id: number) => void;
+}
+
+const Cart: React.FC<Props> = ({ cart, removeFromCart }) => {
+  return (
+    <div>
+      <h2 className="text-xl font-bold mb-4">🛒 Your Cart</h2>
+      {cart.length === 0 ? (
+        <p>No cakes in cart.</p>
+      ) : (
+        <ul>
+          {cart.map((cake) => (
+            <li key={cake.id} className="flex justify-between items-center border-b py-2">
+              <span>{cake.title} - ${cake.price || 20}</span>
+              <button
+                onClick={() => removeFromCart(cake.id)}
+                className="bg-red-500 text-white px-2 py-1 rounded"
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
+export default Cart;
+
+
+// File: src/types/Cake.ts
+export interface Cake {
+  id: number;
+  title: string;
+  description: string;
+  image: string;
+  price?: number;
+}
+
+

@@ -2,47 +2,84 @@ npm create vite@latest
 npm run dev
 npm install tailwindcss @tailwindcss/vite
 
-📁TIMER src/
+📁TIMER📁 src/
 
 // File: src/App.tsx
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState, useRef } from 'react';
 
 const App: React.FC = () => {
-  const [time, setTime] = useState(0);
+  const [time, setTime] = useState(0); // time in ms
+  const [isRunning, setIsRunning] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    timerRef.current = setInterval(() => {
-      setTime((prevTime) => prevTime + 10); // increase every 10ms
-    }, 10);
+  const startTimer = () => {
+    if (!isRunning) {
+      setIsRunning(true);
+      timerRef.current = setInterval(() => {
+        setTime((prev) => prev + 10);
+      }, 10);
+    }
+  };
 
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, []);
+  const stopTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+      setIsRunning(false);
+    }
+  };
 
-  const formatTime = (time: number) => {
-    const hours = Math.floor(time / 3600000);
-    const minutes = Math.floor((time % 3600000) / 60000);
-    const seconds = Math.floor((time % 60000) / 1000);
-    const milliseconds = time % 1000;
+  const resetTimer = () => {
+    stopTimer();
+    setTime(0);
+  };
 
-    const pad = (num: number, size = 2) => String(num).padStart(size, '0');
+  const formatTime = (ms: number) => {
+    const hours = Math.floor(ms / 3600000);
+    const minutes = Math.floor((ms % 3600000) / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    const milliseconds = ms % 1000;
 
-    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}.${pad(milliseconds, 3)}`;
+    return `${String(hours).padStart(2, '0')}:
+            ${String(minutes).padStart(2, '0')}:
+            ${String(seconds).padStart(2, '0')}:
+            ${String(milliseconds).padStart(3, '0')}`;
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen text-3xl font-mono">
-      <div className="mb-4 text-blue-600 font-bold">Live Timer</div>
-      <div className="bg-black text-green-400 p-4 rounded-lg shadow-lg">
+    <div className="h-screen flex flex-col justify-center items-center bg-gray-100">
+      <h1 className="text-4xl font-bold mb-8">Timer</h1>
+      <div className="text-3xl font-mono bg-white p-4 rounded shadow-md">
         {formatTime(time)}
+      </div>
+      <div className="mt-6 flex gap-4">
+        <button
+          onClick={startTimer}
+          className="bg-green-600 text-white px-4 py-2 rounded"
+          disabled={isRunning}
+        >
+          Start
+        </button>
+        <button
+          onClick={stopTimer}
+          className="bg-yellow-500 text-white px-4 py-2 rounded"
+          disabled={!isRunning}
+        >
+          Stop
+        </button>
+        <button
+          onClick={resetTimer}
+          className="bg-red-600 text-white px-4 py-2 rounded"
+        >
+          Reset
+        </button>
       </div>
     </div>
   );
 };
 
 export default App;
+
 
 
 📁FETCH API src/
@@ -413,5 +450,196 @@ export interface Cake {
   image: string;
   price?: number;
 }
+
+📁 public/index.html
+------------------------------------------------------------
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#000000" />
+    <title>ToDo App</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+  </head>
+  <body class="bg-gray-200">
+    <div id="root"></div>
+  </body>
+</html>
+
+
+📁 src/types/Todo.ts
+------------------------------------------------------------
+export interface Todo {
+  id: number;
+  text: string;
+  completed: boolean;
+}
+
+
+📁 src/context/TodoContext.tsx
+------------------------------------------------------------
+import React, { createContext, useContext, useState } from 'react';
+import { Todo } from '../types/Todo';
+
+interface TodoContextProps {
+  todos: Todo[];
+  addTodo: (text: string) => void;
+  toggleTodo: (id: number) => void;
+  deleteTodo: (id: number) => void;
+}
+
+const TodoContext = createContext<TodoContextProps | undefined>(undefined);
+
+export const useTodo = () => {
+  const context = useContext(TodoContext);
+  if (!context) {
+    throw new Error('useTodo must be used within a TodoProvider');
+  }
+  return context;
+};
+
+export const TodoProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [todos, setTodos] = useState<Todo[]>([]);
+
+  const addTodo = (text: string) => {
+    const newTodo: Todo = {
+      id: Date.now(),
+      text,
+      completed: false,
+    };
+    setTodos((prev) => [...prev, newTodo]);
+  };
+
+  const toggleTodo = (id: number) => {
+    setTodos((prev) =>
+      prev.map((todo) => (todo.id === id ? { ...todo, completed: !todo.completed } : todo))
+    );
+  };
+
+  const deleteTodo = (id: number) => {
+    setTodos((prev) => prev.filter((todo) => todo.id !== id));
+  };
+
+  return (
+    <TodoContext.Provider value={{ todos, addTodo, toggleTodo, deleteTodo }}>
+      {children}
+    </TodoContext.Provider>
+  );
+};
+
+
+📁 src/components/TodoForm.tsx
+------------------------------------------------------------
+import React, { useState } from 'react';
+import { useTodo } from '../context/TodoContext';
+
+const TodoForm: React.FC = () => {
+  const [text, setText] = useState('');
+  const { addTodo } = useTodo();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (text.trim()) {
+      addTodo(text);
+      setText('');
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex gap-2 mt-4">
+      <input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Add a new todo"
+        className="border p-2 w-full rounded"
+      />
+      <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded">
+        Add
+      </button>
+    </form>
+  );
+};
+
+export default TodoForm;
+
+
+📁 src/components/TodoList.tsx
+------------------------------------------------------------
+import React from 'react';
+import { useTodo } from '../context/TodoContext';
+
+const TodoList: React.FC = () => {
+  const { todos, toggleTodo, deleteTodo } = useTodo();
+
+  if (todos.length === 0) {
+    return <p className="mt-4 text-gray-500">No tasks. Add one!</p>;
+  }
+
+  return (
+    <ul className="mt-4 space-y-2">
+      {todos.map((todo) => (
+        <li
+          key={todo.id}
+          className="flex justify-between items-center p-2 border rounded bg-white"
+        >
+          <span
+            onClick={() => toggleTodo(todo.id)}
+            className={`cursor-pointer ${
+              todo.completed ? 'line-through text-gray-500' : ''
+            }`}
+          >
+            {todo.text}
+          </span>
+          <button
+            onClick={() => deleteTodo(todo.id)}
+            className="bg-red-500 text-white px-2 py-1 rounded"
+          >
+            Delete
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+};
+
+export default TodoList;
+
+
+📁 src/App.tsx
+------------------------------------------------------------
+import React from 'react';
+import { TodoProvider } from './context/TodoContext';
+import TodoForm from './components/TodoForm';
+import TodoList from './components/TodoList';
+
+const App: React.FC = () => {
+  return (
+    <TodoProvider>
+      <div className="max-w-md mx-auto p-6 mt-10 bg-gray-100 rounded shadow">
+        <h1 className="text-2xl font-bold text-center mb-4">📝 ToDo App</h1>
+        <TodoForm />
+        <TodoList />
+      </div>
+    </TodoProvider>
+  );
+};
+
+export default App;
+
+
+📁 src/index.tsx
+------------------------------------------------------------
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+
+const root = ReactDOM.createRoot(document.getElementById('root')!);
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+
 
 
